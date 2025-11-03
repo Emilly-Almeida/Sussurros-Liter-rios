@@ -49,10 +49,10 @@ Use qualquer um destes e-mails para fazer login (senha não é necessária):
 
 O sistema inclui dados mockados que simulam um banco de dados Neo4j:
 
-- **14 Livros**: As vantagens de ser invisível, É assim que acaba, A culpa é das estrelas, Jogos Vorazes, etc.
+- **22 Livros**: As vantagens de ser invisível, É assim que acaba, A culpa é das estrelas, Jogos Vorazes, etc.
 - **4 Usuários**: Com diferentes preferências e históricos
-- **14 Autores**: Stephen Chbosky, Colleen Hoover, John Green, etc.
-- **4 Gêneros**: Romance, Fantasia, Ficção Científica, Filosofia
+- **15 Autores**: Stephen Chbosky, Colleen Hoover, John Green, etc.
+- **8 Gêneros**: Romance, Fantasia, Ficção Científica, Filosofia
 
 ## Relações do Grafo
 
@@ -103,4 +103,5 @@ WHERE NOT (u)-[:LEU]->(rec)
 RETURN rec.titulo, COUNT(*) as score
 ORDER BY score DESC
 ```
+
 
