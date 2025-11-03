@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Sussurros Literários{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="dashboard-header">
+        <div class="welcome-section">
+            <h1>Olá, {{ usuario.nome }}!</h1>
+            <p>Descubra sua próxima leitura através de conexões inteligentes</p>
+        </div>
+    </div>
+
+    <!-- Barra de Busca -->
+    <div class="search-section">
+        <form action="{{ url_for('buscar') }}" method="GET" class="search-form">
+            <div class="search-input-group">
+                <i class="fas fa-search"></i>
+                <input type="text" name="q" placeholder="Buscar livros, autores ou gêneros..." class="search-input">
+                <button type="submit" class="btn btn-primary">
+                    Buscar
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <div class="explore-section">
+        <a href="{{ url_for('explorar') }}" class="btn-explore">
+            <i class="fas fa-project-diagram"></i>
+            <div>
+                <h3>Explorar Conexões</h3>
+                <p>Visualize o grafo completo de livros, autores e leitores</p>
+            </div>
+            <i class="fas fa-arrow-right"></i>
+        </a>
+    </div>
+
+    <section class="recommendations-section">
+        <div class="section-header">
+            <h2>
+                <i class="fas fa-magic"></i>
+                Recomendações para você
+            </h2>
+            <p>Baseado nos seus gostos e leitores similares</p>
+        </div>
+
+        {% if recomendacoes %}
+        <div class="books-grid">
+            {% for livro in recomendacoes %}
+            <div class="book-card">
+                <a href="{{ url_for('livro', livro_id=livro.id) }}">
+                    <div class="book-cover">
+                        <img src="{{ livro.capa }}" alt="{{ livro.titulo }}">
+                        <div class="book-rating">
+                            <i class="fas fa-star"></i>
+                            {{ livro.nota }}
+                        </div>
+                    </div>
+                    <div class="book-info">
+                        <h3>{{ livro.titulo }}</h3>
+                        <p class="book-author">{{ livro.autor }}</p>
+                        <span class="book-genre">{{ livro.genero }}</span>
+                    </div>
+                </a>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <i class="fas fa-book"></i>
+            <p>Comece avaliando alguns livros para receber recomendações personalizadas!</p>
+        </div>
+        {% endif %}
+    </section>
+
+    <section class="stats-section">
+        <div class="stats-grid">
+            <div class="stat-card">
+                <i class="fas fa-book-open"></i>
+                <div class="stat-content">
+                    <h3>{{ usuario.livros_lidos|length }}</h3>
+                    <p>Livros Lidos</p>
+                </div>
+            </div>
+            <div class="stat-card">
+                <i class="fas fa-heart"></i>
+                <div class="stat-content">
+                    <h3>{{ usuario.generos_favoritos|length }}</h3>
+                    <p>Gêneros Favoritos</p>
+                </div>
+            </div>
+            <div class="stat-card">
+                <i class="fas fa-users"></i>
+                <div class="stat-content">
+                    <h3>{{ recomendacoes|length }}</h3>
+                    <p>Recomendações</p>
+                </div>
+            </div>
+        </div>
+    </section>
+</div>
+{% endblock %}

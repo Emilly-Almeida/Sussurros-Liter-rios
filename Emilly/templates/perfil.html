@@ -1,0 +1,209 @@
+{% extends "base.html" %}
+
+{% block title %}{{ usuario.nome }} - Perfil{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="profile-header">
+        <div class="profile-banner">
+            <div class="profile-info">
+                <img src="{{ usuario.foto }}" alt="{{ usuario.nome }}" class="profile-photo">
+                <div class="profile-details">
+                    <h1>{{ usuario.nome }}</h1>
+                    <p class="profile-email">
+                        <i class="fas fa-envelope"></i>
+                        {{ usuario.email }}
+                    </p>
+                    <div class="profile-genres">
+                        {% for genero in usuario.generos_favoritos %}
+                        <span class="genre-tag">{{ genero }}</span>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Estatísticas do Perfil -->
+    <div class="profile-stats">
+        <div class="stat-item">
+            <i class="fas fa-book"></i>
+            <div>
+                <h3>{{ livros_lidos|length }}</h3>
+                <p>Livros Lidos</p>
+            </div>
+        </div>
+        <div class="stat-item">
+            <i class="fas fa-star"></i>
+            <div>
+                <h3>{{ avaliacoes|length }}</h3>
+                <p>Avaliações</p>
+            </div>
+        </div>
+        <div class="stat-item">
+            <i class="fas fa-users"></i>
+            <div>
+                <h3>{{ leitores_similares|length }}</h3>
+                <p>Conexões</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Livros Lidos -->
+    <section class="profile-section">
+        <div class="section-header">
+            <h2>
+                <i class="fas fa-book-open"></i>
+                Livros Lidos
+            </h2>
+        </div>
+
+        {% if livros_lidos %}
+        <div class="books-grid">
+            {% for livro in livros_lidos %}
+            <div class="book-card">
+                <a href="{{ url_for('livro', livro_id=livro.id) }}">
+                    <div class="book-cover">
+                        <img src="{{ livro.capa }}" alt="{{ livro.titulo }}">
+                        <div class="book-rating user-rating">
+                            <i class="fas fa-star"></i>
+                            {{ avaliacoes.get(livro.id, 0) }}
+                        </div>
+                    </div>
+                    <div class="book-info">
+                        <h3>{{ livro.titulo }}</h3>
+                        <p class="book-author">{{ livro.autor }}</p>
+                        <span class="book-genre">{{ livro.genero }}</span>
+                    </div>
+                </a>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <i class="fas fa-book"></i>
+            <p>Nenhum livro lido ainda.</p>
+        </div>
+        {% endif %}
+    </section>
+
+    <!-- Grafo de Conexões com Leitores -->
+    <section class="profile-section">
+        <div class="section-header">
+            <h2>
+                <i class="fas fa-project-diagram"></i>
+                Conexões com Outros Leitores
+            </h2>
+            <p>Leitores que compartilham gostos similares com você</p>
+        </div>
+
+        {% if leitores_similares %}
+        <div class="readers-grid">
+            {% for similar in leitores_similares %}
+            <div class="reader-card">
+                <a href="{{ url_for('perfil', usuario_id=similar.usuario.id) }}">
+                    <img src="{{ similar.usuario.foto }}" alt="{{ similar.usuario.nome }}">
+                    <div class="reader-info">
+                        <h3>{{ similar.usuario.nome }}</h3>
+                        <p class="connection-strength">
+                            <i class="fas fa-link"></i>
+                            {{ similar.livros_em_comum }} livro(s) em comum
+                        </p>
+                        <div class="reader-genres">
+                            {% for genero in similar.usuario.generos_favoritos[:2] %}
+                            <span class="genre-mini-tag">{{ genero }}</span>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </a>
+            </div>
+            {% endfor %}
+        </div>
+
+        <!-- Mini Grafo Visual -->
+        <div class="mini-graph-container">
+            <h3>Visualização do Grafo de Conexões</h3>
+            <div id="miniGraph" style="height: 400px; border: 1px solid #e0e0e0; border-radius: 8px; background: #fafafa;"></div>
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <i class="fas fa-users"></i>
+            <p>Nenhuma conexão encontrada ainda.</p>
+        </div>
+        {% endif %}
+    </section>
+</div>
+
+{% endblock %}
+
+{% block extra_css %}
+<script src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+<style>
+    #miniGraph {
+        position: relative;
+    }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Criar mini grafo de conexões
+    const container = document.getElementById('miniGraph');
+    
+    if (container) {
+        const nodes = new vis.DataSet([
+            {id: 'user_{{ usuario.id }}', label: '{{ usuario.nome }}', group: 'usuario', color: '#9b59b6', size: 30}
+            {% for similar in leitores_similares %}
+            ,{id: 'user_{{ similar.usuario.id }}', label: '{{ similar.usuario.nome }}', group: 'usuario', color: '#3498db', size: 20}
+            {% endfor %}
+        ]);
+
+        const edges = new vis.DataSet([
+            {% for similar in leitores_similares %}
+            {from: 'user_{{ usuario.id }}', to: 'user_{{ similar.usuario.id }}', label: '{{ similar.livros_em_comum }}', width: {{ similar.livros_em_comum }}}{% if not loop.last %},{% endif %}
+            {% endfor %}
+        ]);
+
+        const data = {nodes: nodes, edges: edges};
+        
+        const options = {
+            nodes: {
+                shape: 'dot',
+                font: {
+                    size: 14,
+                    color: '#333'
+                },
+                borderWidth: 2,
+                borderWidthSelected: 4
+            },
+            edges: {
+                width: 2,
+                color: {color: '#848484'},
+                smooth: {
+                    type: 'continuous'
+                },
+                font: {
+                    size: 12,
+                    align: 'middle'
+                }
+            },
+            physics: {
+                stabilization: {
+                    iterations: 200
+                },
+                barnesHut: {
+                    gravitationalConstant: -2000,
+                    springConstant: 0.001,
+                    springLength: 200
+                }
+            },
+            interaction: {
+                hover: true,
+                tooltipDelay: 200
+            }
+        };
+
+        const network = new vis.Network(container, data, options);
+    }
+</script>
+{% endblock %}

@@ -1,0 +1,283 @@
+{% extends "base.html" %}
+
+{% block title %}Explorar Grafos - Sussurros Literários{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="explore-header">
+        <h1>
+            <i class="fas fa-project-diagram"></i>
+            Exploração de Grafos
+        </h1>
+        <p>Visualize as conexões entre leitores, livros, autores e gêneros</p>
+    </div>
+
+    <!-- Controles de Visualização -->
+    <div class="graph-controls">
+        <div class="control-group">
+            <label>
+                <i class="fas fa-filter"></i>
+                Tipo de Visualização:
+            </label>
+            <select id="graphType" class="control-select">
+                <option value="completo">Grafo Completo</option>
+                <option value="usuario">Conexões de um Usuário</option>
+                <option value="genero">Livros por Gênero</option>
+            </select>
+        </div>
+
+        <div class="control-group" id="userSelectGroup" style="display: none;">
+            <label>
+                <i class="fas fa-user"></i>
+                Selecionar Usuário:
+            </label>
+            <select id="userSelect" class="control-select">
+                <option value="emilly">Emilly</option>
+                <option value="vitor">Vitor</option>
+                <option value="carolina">Carolina</option>
+                <option value="lucas">Lucas</option>
+            </select>
+        </div>
+
+        <button id="updateGraph" class="btn btn-primary">
+            <i class="fas fa-sync"></i>
+            Atualizar Grafo
+        </button>
+    </div>
+
+    <!-- Consultas Exemplares -->
+    <div class="query-examples">
+        <h3>
+            <i class="fas fa-search"></i>
+            Consultas Exemplares (Neo4j Cypher)
+        </h3>
+        <div class="queries-grid">
+            <div class="query-card">
+                <h4>Livros que Emilly leu</h4>
+                <code>
+                    MATCH (u:Usuario {nome: 'Emilly Cruz'})-[:LEU]->(l:Livro)
+                    RETURN l.titulo
+                </code>
+            </div>
+            <div class="query-card">
+                <h4>Autores do gênero Fantasia</h4>
+                <code>
+                    MATCH (a:Autor)-[:ESCREVEU]->(l:Livro)-[:PERTENCE_A]->(g:Genero {nome: 'Fantasia'})
+                    RETURN DISTINCT a.nome
+                </code>
+            </div>
+            <div class="query-card">
+                <h4>Leitores com gostos semelhantes</h4>
+                <code>
+                    MATCH (u1:Usuario)-[:LEU]->(l:Livro)&lt;-[:LEU]-(u2:Usuario)
+                    WHERE u1 &lt;&gt; u2
+                    RETURN u1.nome, u2.nome, COUNT(l) as livros_em_comum
+                    ORDER BY livros_em_comum DESC
+                </code>
+            </div>
+            <div class="query-card">
+                <h4>Recomendações para um usuário</h4>
+                <code>
+                    MATCH (u:Usuario {nome: 'Emilly Cruz'})-[:LEU]->(:Livro)&lt;-[:LEU]-(outros:Usuario)
+                    MATCH (outros)-[:LEU]->(rec:Livro)
+                    WHERE NOT (u)-[:LEU]->(rec)
+                    RETURN rec.titulo, COUNT(*) as score
+                    ORDER BY score DESC
+                </code>
+            </div>
+        </div>
+    </div>
+
+    <!-- Visualização do Grafo -->
+    <div class="graph-container">
+        <div id="graphCanvas"></div>
+    </div>
+
+    <!-- Legenda -->
+    <div class="graph-legend">
+        <h4>Legenda</h4>
+        <div class="legend-grid">
+            <div class="legend-item">
+                <span class="legend-node" style="background: #9b59b6;"></span>
+                <span>Usuário</span>
+            </div>
+            <div class="legend-item">
+                <span class="legend-node" style="background: #3498db;"></span>
+                <span>Livro</span>
+            </div>
+            <div class="legend-item">
+                <span class="legend-node" style="background: #e74c3c;"></span>
+                <span>Autor</span>
+            </div>
+            <div class="legend-item">
+                <span class="legend-node" style="background: #f39c12;"></span>
+                <span>Gênero</span>
+            </div>
+        </div>
+        <div class="legend-edges">
+            <div class="legend-item">
+                <span class="legend-edge"></span>
+                <span>LEU / ESCREVEU / PERTENCE_A</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Informações do Nó Selecionado -->
+    <div id="nodeInfo" class="node-info" style="display: none;">
+        <h3 id="nodeTitle"></h3>
+        <p id="nodeDescription"></p>
+        <button id="closeNodeInfo" class="btn btn-outline btn-sm">
+            <i class="fas fa-times"></i>
+            Fechar
+        </button>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<script src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+<style>
+    #graphCanvas {
+        height: 600px;
+        border: 2px solid #e0e0e0;
+        border-radius: 12px;
+        background: #fafafa;
+    }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    let network = null;
+
+    // Configuração do grafo
+    function loadGraph(type = 'completo', userId = null) {
+        const container = document.getElementById('graphCanvas');
+        
+        let url = '/api/grafo?tipo=' + type;
+        if (userId && type === 'usuario') {
+            url += '&id=' + userId;
+        }
+
+        fetch(url)
+            .then(response => response.json())
+            .then(data => {
+                const nodes = new vis.DataSet(data.nodes.map(node => {
+                    // Configurar cores por grupo
+                    let color = '#95a5a6';
+                    if (node.group === 'usuario') color = '#9b59b6';
+                    if (node.group === 'livro') color = '#3498db';
+                    if (node.group === 'autor') color = '#e74c3c';
+                    if (node.group === 'genero') color = '#f39c12';
+                    if (node.group === 'editora') color = '#27ae60';
+
+                    return {
+                        ...node,
+                        color: node.color || color,
+                        font: { color: '#ffffff', size: 14 }
+                    };
+                }));
+
+                const edges = new vis.DataSet(data.edges);
+
+                const graphData = { nodes: nodes, edges: edges };
+
+                const options = {
+                    nodes: {
+                        shape: 'dot',
+                        size: 20,
+                        borderWidth: 2,
+                        borderWidthSelected: 4,
+                        font: {
+                            size: 14,
+                            color: '#ffffff'
+                        }
+                    },
+                    edges: {
+                        width: 2,
+                        color: { color: '#848484' },
+                        smooth: {
+                            type: 'continuous'
+                        },
+                        font: {
+                            size: 12,
+                            align: 'middle',
+                            background: '#ffffff'
+                        }
+                    },
+                    physics: {
+                        stabilization: {
+                            iterations: 300
+                        },
+                        barnesHut: {
+                            gravitationalConstant: -8000,
+                            springConstant: 0.001,
+                            springLength: 200
+                        }
+                    },
+                    interaction: {
+                        hover: true,
+                        tooltipDelay: 200,
+                        navigationButtons: true,
+                        keyboard: true
+                    }
+                };
+
+                if (network) {
+                    network.destroy();
+                }
+
+                network = new vis.Network(container, graphData, options);
+
+                // Evento de clique em nó
+                network.on('click', function(params) {
+                    if (params.nodes.length > 0) {
+                        const nodeId = params.nodes[0];
+                        const node = nodes.get(nodeId);
+                        showNodeInfo(node);
+                    }
+                });
+            })
+            .catch(error => {
+                console.error('Erro ao carregar grafo:', error);
+                container.innerHTML = '<div style="padding: 20px; text-align: center;">Erro ao carregar o grafo. Tente novamente.</div>';
+            });
+    }
+
+    function showNodeInfo(node) {
+        const infoDiv = document.getElementById('nodeInfo');
+        const title = document.getElementById('nodeTitle');
+        const description = document.getElementById('nodeDescription');
+
+        title.textContent = node.label;
+        description.textContent = node.title || 'Nenhuma descrição disponível.';
+        
+        infoDiv.style.display = 'block';
+    }
+
+    // Event listeners
+    document.getElementById('graphType').addEventListener('change', function() {
+        const type = this.value;
+        const userGroup = document.getElementById('userSelectGroup');
+        
+        if (type === 'usuario') {
+            userGroup.style.display = 'block';
+        } else {
+            userGroup.style.display = 'none';
+        }
+    });
+
+    document.getElementById('updateGraph').addEventListener('click', function() {
+        const type = document.getElementById('graphType').value;
+        const userId = type === 'usuario' ? document.getElementById('userSelect').value : null;
+        loadGraph(type, userId);
+    });
+
+    document.getElementById('closeNodeInfo').addEventListener('click', function() {
+        document.getElementById('nodeInfo').style.display = 'none';
+    });
+
+    // Carregar grafo inicial
+    loadGraph('completo');
+</script>
+{% endblock %}

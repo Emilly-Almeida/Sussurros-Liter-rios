@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+
+{% block title %}Login - Sussurros Literários{% endblock %}
+
+{% block content %}
+<div class="auth-container">
+    <div class="auth-card">
+        <div class="auth-header">
+            <i class="fas fa-book-reader"></i>
+            <h1>Sussurros Literários</h1>
+            <p>Conecte-se através dos livros</p>
+        </div>
+
+        {% if erro %}
+        <div class="alert alert-error">
+            <i class="fas fa-exclamation-circle"></i>
+            {{ erro }}
+        </div>
+        {% endif %}
+
+        <form method="POST" class="auth-form">
+            <div class="form-group">
+                <label for="email">
+                    <i class="fas fa-envelope"></i> E-mail
+                </label>
+                <input type="email" id="email" name="email" required 
+                       placeholder="seu@email.com">
+            </div>
+
+            <div class="form-group">
+                <label for="senha">
+                    <i class="fas fa-lock"></i> Senha
+                </label>
+                <input type="password" id="senha" name="senha" required 
+                       placeholder="••••••••">
+            </div>
+
+            <button type="submit" class="btn btn-primary btn-block">
+                <i class="fas fa-sign-in-alt"></i> Entrar
+            </button>
+        </form>
+
+        <div class="auth-footer">
+            <p>Não tem uma conta? <a href="{{ url_for('cadastro') }}">Cadastre-se</a></p>
+        </div>
+
+        <div class="demo-users">
+            <p><strong>Usuários de demonstração:</strong></p>
+            <ul>
+                <li>emilly@livros.com.br - Emilly (Fantasia, Ficção Científica)</li>
+                <li>vitor@livros.com.br - Vitor (Ficção Científica, Romance)</li>
+                <li>carolina@livros.com.br - Carolina (Fantasia, Romance)</li>
+                <li>lucas@livros.com.br - Lucas (Fantasia)</li>
+            </ul>
+        </div>
+    </div>
+</div>
+{% endblock %}
